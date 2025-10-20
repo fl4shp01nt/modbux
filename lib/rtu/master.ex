@@ -143,7 +143,7 @@ defmodule Modbux.Rtu.Master do
     Logger.debug("(#{__MODULE__}) Starting Modbux Master at \"#{tty}\"")
     uart_opts = Keyword.get(params, :uart_opts, speed: @speed, rx_framing_timeout: @timeout)
     {:ok, u_pid} = UART.start_link()
-    UART.open(u_pid, tty, [framing: {Framer, behavior: :master}, active: false] ++ uart_opts)
+    :ok = UART.open(u_pid, tty, [framing: {Framer, behavior: :master}, active: false] ++ uart_opts)
     Logger.debug("(#{__MODULE__}) Reported UART configuration: \"#{inspect(UART.configuration(u_pid))}\"")
 
     state = %Master{
@@ -166,12 +166,12 @@ defmodule Modbux.Rtu.Master do
   end
 
   def handle_call(:open, _from, %{uart_pid: u_pid, tty: tty, uart_opts: uart_opts} = state) do
-    UART.open(u_pid, tty, [framing: {Framer, behavior: :master}, active: false] ++ uart_opts)
+    :ok = UART.open(u_pid, tty, [framing: {Framer, behavior: :master}, active: false] ++ uart_opts)
     {:reply, :ok, state}
   end
 
   def handle_call(:close, _from, state) do
-    UART.close(state.uart_pid)
+    :ok = UART.close(state.uart_pid)
     {:reply, :ok, state}
   end
 
@@ -179,7 +179,7 @@ defmodule Modbux.Rtu.Master do
     uart_frame = Rtu.pack_req(cmd)
     Logger.debug("(#{__MODULE__}) Frame: #{inspect(uart_frame, base: :hex)}")
     UART.flush(state.uart_pid)
-    UART.write(state.uart_pid, uart_frame)
+    :ok = UART.write(state.uart_pid, uart_frame)
 
     res =
       if state.active do
@@ -204,7 +204,7 @@ defmodule Modbux.Rtu.Master do
     UART.stop(state.uart_pid)
 
     {:ok, u_pid} = UART.start_link()
-    UART.open(u_pid, tty, [framing: {Framer, behavior: :master}, active: false] ++ uart_opts)
+    :ok = UART.open(u_pid, tty, [framing: {Framer, behavior: :master}, active: false] ++ uart_opts)
 
     new_state = %Master{
       parent_pid: parent_pid,

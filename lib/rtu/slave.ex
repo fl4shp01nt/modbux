@@ -129,7 +129,7 @@ defmodule Modbux.Rtu.Slave do
     uart_opts = Keyword.get(params, :uart_opts, speed: @speed, rx_framing_timeout: @timeout)
     {:ok, model_pid} = Shared.start_link(model: model)
     {:ok, u_pid} = UART.start_link()
-    UART.open(u_pid, tty, [framing: {Framer, behavior: :slave}] ++ uart_opts)
+    :ok = UART.open(u_pid, tty, [framing: {Framer, behavior: :slave}] ++ uart_opts)
 
     state = %Slave{
       model_pid: model_pid,
@@ -173,19 +173,21 @@ defmodule Modbux.Rtu.Slave do
   end
 
   def handle_call({:raw_write, data}, _from, state) do
-    UART.write(state.uart_pid, data)
+    :ok = UART.write(state.uart_pid, data)
     {:reply, :ok, state}
   end
 
   def handle_info({:circuits_uart, device, {:error, reason, bad_frame}}, state) do
-    Logger.warning("(#{__MODULE__}) Error with \"#{device}\" received: #{inspect(bad_frame, base: :hex)}, reason: #{reason}")
+    Logger.warning(
+      "(#{__MODULE__}) Error with \"#{device}\" received: #{inspect(bad_frame, base: :hex)}, reason: #{reason}"
+    )
 
     case reason do
       :einval ->
         if valid_slave_id?(state, bad_frame) do
           response = Rtu.pack_res(bad_frame, :einval)
           Logger.debug("(#{__MODULE__}) Sending error code: #{inspect(response)}, reason: #{reason}")
-          UART.write(state.uart_pid, response)
+          :ok = UART.write(state.uart_pid, response)
         end
 
       _ ->
@@ -210,12 +212,12 @@ defmodule Modbux.Rtu.Slave do
       {:ok, values} ->
         response = Rtu.pack_res(cmd, values)
         if !is_nil(state.parent_pid), do: notify(state.parent_pid, nil, cmd)
-        UART.write(state.uart_pid, response)
+        :ok = UART.write(state.uart_pid, response)
 
       {:error, reason} ->
         response = Rtu.pack_res(modbus_frame, reason)
         if !is_nil(state.parent_pid), do: notify(state.parent_pid, reason, cmd)
-        UART.write(state.uart_pid, response)
+        :ok = UART.write(state.uart_pid, response)
 
         Logger.debug(
           "(#{__MODULE__}) An error has occur for cmd: #{inspect(cmd)}, response #{inspect(response)}"
